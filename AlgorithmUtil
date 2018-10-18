@@ -16,7 +16,6 @@ import java.security.NoSuchAlgorithmException;
 
 /**
  * HMAC_SHA1加密算法、MD5加密算法
- * 此方法对照海康请求头header需求
  */
 public class AlgorithmUtil {
 	/**
@@ -115,7 +114,6 @@ public class AlgorithmUtil {
 		return null;
 	}
 	/**
-	 * 海康要求的HMAC_SHA1算法
 	 * @param encryptText
 	 * @param encryptKey
 	 * @return
