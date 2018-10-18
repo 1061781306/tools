@@ -1,0 +1,179 @@
+package com.jf.parent.util;
+
+import com.jf.parent.entity.Visit;
+import org.apache.poi.hssf.usermodel.*;
+import org.apache.poi.xssf.usermodel.*;
+import org.springframework.util.StringUtils;
+
+import javax.servlet.http.HttpServletResponse;
+import java.io.BufferedOutputStream;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.net.URLEncoder;
+import java.text.SimpleDateFormat;
+import java.util.Collection;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * 此表需要实体类，通过反射将实体类中的属性值取出，添加到给Excel表
+ * @author Administrator
+ *
+ * @param <T>
+ */
+public class TestExportExcel<T> {
+	/**
+	 * 
+	 * @param headers 传入的标题数组
+	 * @param dataset 传入的数据集合
+	 * @param fileName 文件名
+	 * @param response
+	 */
+	public void exportExcel(String[] headers, List<Visit> dataset, String fileName, HttpServletResponse response) {
+		
+		//声明一个工作簿workbook
+		XSSFWorkbook workbook = new XSSFWorkbook();
+		//生成一个表格sheet
+		XSSFSheet sheet = workbook.createSheet(fileName);
+		//设置表格默认(default)列表宽度为20个字节
+		sheet.setDefaultColumnWidth((short)20);
+		//产生表格的标题行
+		XSSFRow row = sheet.createRow(0);
+        //定义一个日期的格式
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
+        //将标题的内容添加
+        for(int i = 0;i<headers.length;i++){
+            XSSFCell cell = row.createCell(i);
+            XSSFRichTextString text = new XSSFRichTextString(headers[i]);
+            cell.setCellValue(text);
+        }
+        //遍历集合数据产生数据行
+        Iterator it = dataset.iterator();
+        int index = 0;
+        while (it.hasNext()){
+            index++;
+            row = sheet.createRow(index);
+            Object next = it.next();
+            if (!StringUtils.isEmpty(next)){
+                Visit visit = (Visit) next;
+                XSSFCell c1 = row.createCell(0);
+                c1.setCellValue(sdf.format(visit.getVisitDate()));
+                XSSFCell c2 = row.createCell(1);
+                c2.setCellValue(visit.getVisitPeopleNum());
+                XSSFCell c3 = row.createCell(2);
+                c3.setCellValue(visit.getVisitTimesNum());
+            }
+        }
+        try {
+            getExportedFile(workbook,fileName,response);
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+//		try {
+//			//遍历集合数据产生数据行
+//			Iterator<T> it = dataset.iterator();
+//			int index = 0;
+//			while(it.hasNext()){
+//				index++;
+//				System.out.println("index::"+index);
+//				row = sheet.createRow(index);
+//				T t = (T)it.next();
+//				// 利用反射，根据javabean属性的先后顺序，动态调用getXxx()方法得到属性值
+//				Field[] fields = t.getClass().getDeclaredFields();
+//				for(int i = 0;i<headers.length;i++){
+//					XSSFCell cell = row.createCell(i);
+//
+//					Field field = fields[i];
+//					String fieldName = field.getName();//fieldName实体类中的属性值 例如 id name
+//					//getMethodName 对应实体类属性值对应的get方法getId getName
+//					String getMethodName = "get"+fieldName.substring(0,1).toUpperCase()+fieldName.substring(1);
+//					Class<? extends Object> tCls= t.getClass();
+//					Method getMethod = tCls.getMethod(getMethodName, new Class[] {});
+//					Object value = getMethod.invoke(t, new Object[]{});
+//
+//					System.out.println("value=  "+value);
+//					// 判断值的类型后进行强制类型转换
+//					String textValue = null;
+//					if (value instanceof Date)
+//					{
+//						Date date = (Date) value;
+//						SimpleDateFormat sdf = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
+//						textValue = sdf.format(date);
+//					}
+//					else if (value instanceof byte[])
+//					{
+//						// 有图片时，设置行高为60px;
+//						row.setHeightInPoints(60);
+//						// 设置图片所在列宽度为80px,注意这里单位的一个换算
+//						sheet.setColumnWidth(i, (short) (35.7 * 80));
+//						// sheet.autoSizeColumn(i);
+//						byte[] bsValue = (byte[]) value;
+//						HSSFClientAnchor anchor = new HSSFClientAnchor(0, 0,1023, 255, (short) 6, index, (short) 6, index);
+//						anchor.setAnchorType(2);
+//						patriarch.createPicture(anchor, workbook.addPicture(bsValue, HSSFWorkbook.PICTURE_TYPE_JPEG));
+//					}
+//					else
+//					{
+//						// 其它数据类型都当作字符串简单处理
+//						textValue = value == null? "": value.toString();
+//					}
+//					// 如果不是图片数据，就利用正则表达式判断textValue是否全部由数字组成
+//					if (textValue != null)
+//					{
+//						Pattern p = Pattern.compile("^//d+(//.//d+)?$");
+//						Matcher matcher = p.matcher(textValue);
+//						if (matcher.matches())
+//						{
+//							// 是数字当作double处理
+//							cell.setCellValue(Double.parseDouble(textValue));
+//						}
+//						else
+//						{
+//                            XSSFRichTextString richString = new XSSFRichTextString(textValue);
+//                            cell.setCellValue(richString);
+//						}
+//					}
+//				}
+//			}
+//			getExportedFile(workbook, fileName,response);
+//		} catch (Exception e) {
+//			e.printStackTrace();
+//		}
+		
+	}
+	/**
+	 * 指定路径生成Excel文件
+	 * @param workbook
+	 * @param name
+	 * @param response
+	 * @throws IOException 
+	 */
+	private void getExportedFile(XSSFWorkbook workbook, String name,
+                                 HttpServletResponse response) throws IOException {
+		BufferedOutputStream fos = null;
+		try {
+			String fileName = name+".xlsx";
+			System.out.println("下载的名字为："+fileName);
+			fileName = URLEncoder.encode(fileName,"UTF-8");
+			response.setContentType("application/vnd.ms-excel;charset=utf-8");
+			response.setHeader("Content-Disposition", "attachment;filename="+fileName);
+			System.out.println("下载的名字更改之后为"+new String( fileName.getBytes("UTF-8"),"UTF-8"));
+            fos = new BufferedOutputStream(response.getOutputStream());  
+            workbook.write(fos);  
+		} catch (Exception e) {
+			e.printStackTrace();
+		} finally {  
+            if (fos != null) {  
+                fos.close();  
+            }  
+        }  
+		
+	}
+
+}
+
+
