@@ -1,0 +1,172 @@
+package com.jf.parent.util;
+
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+/**
+ * 此类用于敏感词的过滤
+ * 将数据库里的敏感词取出来，用Unicode编码，
+ * 然后进行转换敏感词正则格式："\u4f60.{0,2}\u59b9"
+ * 最后进行匹配，将要敏感词替换掉
+ *
+ */
+public class 	TestSensitive {
+
+//	public static void main(String[] args) {				
+//		/*
+//		 * 测试
+//		 */
+//		String str = "你的妹厉害，你是不是不*想*活了，拉出去毙了";
+//		String changedStr = changeSensitive(str);
+//		System.out.println(changedStr);
+//	}
+	/**
+	 * 临时封装一个方法，用于处理数据库里取出来的敏感词
+	 * @param set
+	 * @param str
+	 * @return
+	 */
+	public static String changeSensitiveTest(Set<String> set,String str){
+		Set<String> secondSet = dealSensitiveSet(set);
+		Set<String> thirdSet = transformSet(secondSet);
+		Pattern pattern=null;//将给定的正则表达式编译到模式中。
+		Matcher matcher=null;
+		//判断传过来的字符串不能为空，否则会报空指针异常
+		if(str!=null && !"".equals(str)){
+			for(String key:thirdSet){//遍历set集合，取出敏感词的正则表达式
+				pattern = Pattern.compile(key);
+				matcher = pattern.matcher(str);
+				while(matcher.find()){
+					//把要匹配的字符串进行敏感词替换
+					str = str.replace(matcher.group(), "*");
+				}
+			}
+		}
+		return str;
+	}
+	/**
+	 * 将传过来的字符串进行敏感词过滤
+	 * @param str
+	 * @return
+	 */
+	public static String changeSensitive(String str){
+		//获取敏感词
+		Set<String> firstSet =  getSensitiveSet();
+		//处理敏感词，将中文转成Unicode编码
+		Set<String> secondSet = dealSensitiveSet(firstSet);
+		//将敏感词中的{n}替换成.{0,n}的形式
+		Set<String> thirdSet = transformSet(secondSet);
+		Pattern pattern=null;//将给定的正则表达式编译到模式中。
+		Matcher matcher=null;
+		for(String key:thirdSet){//遍历set集合，取出敏感词的正则表达式
+			pattern = Pattern.compile(key);
+			matcher = pattern.matcher(str);
+			while(matcher.find()){
+				//把要匹配的字符串进行敏感词替换
+				str = str.replace(matcher.group(), "*");
+			}
+		}
+		return str;
+	}
+	public static Set<String> getSensitiveSet(){
+		/**
+		 *	关于sensitiveWord集合，可以在数据库中查出来，也可以以读取文件的形式，将内容替换
+		 */
+		
+		Set<String> sensitiveWord = new HashSet<String>();
+		sensitiveWord.add("毙{1}了");
+		sensitiveWord.add("不{1}想{2}活");
+		sensitiveWord.add("你{1}妹");
+		return sensitiveWord;
+	}
+	/**
+	 * 得到敏感词，并将敏感词遍历，转换成Unicode编码，将其存入到新的Set集合里返回
+	 * @return
+	 */
+	public static Set<String> dealSensitiveSet(Set<String> sensitiveWord){
+		
+		Iterator<String> itt = sensitiveWord.iterator();
+		Set<String> nowSet = new HashSet<String>();
+		while(itt.hasNext()){
+			//遍历set集合得到关键词
+			String key = itt.next();
+			/*
+			 * 判断关键词是否含有中文，如果含有中文汉字，将中文汉字转换为Unicode编码
+			 * 并将替换后的字符返回
+			 */
+			if(key.matches(".*[\\u4e00-\\u9faf].*")){//判断关键词中是否含有中文
+				String pattern="[\u4e00-\u9fa5]";  //正则表达式
+		        Pattern p=Pattern.compile(pattern);   //将给定的正则表达式编译到模式中。
+		        Matcher result=p.matcher(key);    //创建匹配给定输入与此模式的匹配器。
+		        
+		       
+		        while (result.find()) {    //如果匹配成功，则可以通过 start、end 和 group 方法获取更多信息。 
+		            //将得到的中文转化为Unicode
+		        	String code = string2Unicode(result.group());
+		        	key = key.replace(result.group(), code);
+		        	
+		            
+		        }	nowSet.add(key);//将转换后的关键词  存入新的set集合里	   
+			}
+		}
+		return nowSet;
+		
+		
+	}
+	/**
+	 * 将set集合传入进去，进行转换，将敏感词中的{n}替换成.{0,n}的形式
+	 * 敏感词正则格式："\u4f60.{0,2}\u59b9"
+	 * @param nowMap
+	 * @return
+	 */
+	public static Set<String> transformSet(Set<String> nowMap){
+		/*
+		 * 将nowMap遍历，将每一个关键词取出来，相继 的去匹配 str
+		 */
+		Iterator<String> itts = nowMap.iterator();
+		String key1="";
+		String regex = "\\{(\\d+)\\}";
+		Pattern pattern = Pattern.compile(regex);
+		Matcher mm =null;
+		Matcher nn = null;
+		Set<String> finalSet = new HashSet<String>();
+		while(itts.hasNext()){
+			key1 = itts.next();	
+			mm = pattern.matcher(key1);			
+			while(mm.find()){
+				//得到一系列的{n}	
+				nn = Pattern.compile("\\d+").matcher(mm.group());
+				while(nn.find()){				
+					//将{n}替换成.{0,n}的形式
+					key1 = key1.replace(mm.group(),".{0,"+nn.group()+"}");					
+				}			
+			}
+			//将替换后key值放入最终的set集合里
+			finalSet.add(key1);
+		}
+		return finalSet;	
+	}
+	/**
+	 * 将字符串转化为Unicode编码
+	 * @param string
+	 * @return
+	 */
+	public static String string2Unicode(String string) {
+        
+        StringBuffer unicode = new StringBuffer();
+      
+        for (int i = 0; i < string.length(); i++) {
+      
+            // 取出每一个字符
+            char c = string.charAt(i);
+      
+            // 转换为unicode
+            unicode.append("\\u" + Integer.toHexString(c));
+        }
+      
+        return unicode.toString();
+    }
+
+}
